@@ -6,6 +6,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EPUB Reader</title>
   <style>
+    :root {
+      --bg-color: #ffffff;
+      --text-color: #333333;
+      --ui-bg: #f9f9f9;
+      --border-color: #eaeaea;
+      --button-bg: #333333;
+      --button-text: #ffffff;
+      --button-hover-bg: #555555;
+      --accent-color: #007bff;
+      --error-color: #dc3545;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #121212;
+      --text-color: #e0e0e0;
+      --ui-bg: #1e1e1e;
+      --border-color: #333333;
+      --button-bg: #333333;
+      --button-text: #e0e0e0;
+      --button-hover-bg: #444444;
+      --accent-color: #4da3ff;
+      --error-color: #ff6b6b;
+    }
+
     *,
     *::before,
     *::after {
@@ -15,96 +39,99 @@
     }
 
     body {
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #f0f2f5;
-      color: #1c1e21;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
       display: flex;
       flex-direction: column;
       height: 100vh;
       overflow: hidden;
+      transition: background-color 0.3s ease, color 0.3s ease;
     }
 
-    header {
-      background-color: #212529;
-      color: white;
-      text-align: center;
-      padding: 1rem;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-
-    header h1 {
-      font-size: 1.5rem;
-      font-weight: 600;
-    }
-
-    #upload {
-      background-color: #ffffff;
-      border-bottom: 1px solid #dee2e6;
+    /* Controls container (Top) */
+    #controls {
       display: flex;
-      justify-content: center;
+      justify-content: space-between;
+      align-items: center;
       padding: 1rem;
+      background-color: var(--bg-color);
+      /* Minimalist: no border or shadow unless needed, maybe just spacing */
     }
 
     #fileInput {
-      font-size: 0.95rem;
-      padding: 0.6rem 1rem;
-      border: 2px dashed #6c757d;
-      background-color: #f8f9fa;
-      color: #495057;
-      border-radius: 0.5rem;
+      font-size: 0.9rem;
+      color: var(--text-color);
       cursor: pointer;
+    }
+
+    /* Hide the default file input style somewhat if possible, or keep it simple */
+    input[type="file"]::file-selector-button {
+      border: 1px solid var(--border-color);
+      padding: 0.4em 0.8em;
+      border-radius: 0.2em;
+      background-color: var(--ui-bg);
+      color: var(--text-color);
+      transition: 0.2s;
+      cursor: pointer;
+    }
+
+    input[type="file"]::file-selector-button:hover {
+      background-color: var(--button-hover-bg);
+      color: var(--button-text);
+    }
+
+    #theme-toggle {
+      background: none;
+      border: 1px solid var(--border-color);
+      color: var(--text-color);
+      padding: 0.4rem 0.8rem;
+      border-radius: 0.2rem;
+      cursor: pointer;
+      font-size: 0.9rem;
       transition: all 0.2s ease;
     }
 
-    #fileInput:hover,
-    #fileInput:focus {
-      border-color: #007bff;
-      background-color: #e2e6ea;
-      outline: none;
+    #theme-toggle:hover {
+      background-color: var(--ui-bg);
     }
 
     #viewer {
       flex: 1;
       display: flex;
       overflow: hidden;
+      position: relative;
     }
 
     #book-container {
       flex: 1;
-      padding: 1rem;
-      overflow-y: auto;
-      background-color: #ffffff;
+      overflow: hidden; /* epub.js handles scrolling usually within iframe or div */
+      background-color: var(--bg-color);
     }
 
+    /* Navigation (Bottom) */
     #navigation {
-      position: sticky;
-      bottom: 0;
-      z-index: 10;
       display: flex;
       justify-content: center;
       align-items: center;
-      gap: 1rem;
+      gap: 2rem;
       padding: 1rem;
-      background-color: #ffffff;
-      border-top: 1px solid #dee2e6;
+      background-color: var(--bg-color);
     }
 
-    #navigation button {
-      background-color: #343a40;
-      color: #ffffff;
-      padding: 0.6rem 1rem;
-      font-size: 0.9rem;
+    .nav-btn {
+      background: none;
       border: none;
-      border-radius: 0.4rem;
+      color: var(--text-color);
+      font-size: 1.2rem;
       cursor: pointer;
-      transition: background-color 0.2s ease;
+      opacity: 0.6;
+      transition: opacity 0.2s ease;
+      padding: 0.5rem;
     }
 
-    #navigation button:hover {
-      background-color: #007bff;
+    .nav-btn:hover {
+      opacity: 1;
     }
 
     #progress-container {
@@ -112,34 +139,22 @@
       bottom: 0;
       left: 0;
       right: 0;
-      height: 4px;
-      background-color: #dee2e6;
+      height: 3px;
+      background-color: transparent;
+      pointer-events: none;
     }
 
     #progress-bar {
       height: 100%;
       width: 0;
-      background-color: #28a745;
-      transition: width 0.15s ease-in-out;
+      background-color: var(--accent-color);
+      transition: width 0.2s ease;
     }
 
     .error-message {
-      color: #dc3545;
+      color: var(--error-color);
       text-align: center;
-      padding: 0.75rem;
-      font-size: 0.95rem;
-    }
-
-    @media (max-width: 600px) {
-      #fileInput {
-        font-size: 0.85rem;
-        padding: 0.5rem 0.75rem;
-      }
-
-      #navigation button {
-        font-size: 0.8rem;
-        padding: 0.4rem 0.75rem;
-      }
+      padding: 1rem;
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -147,25 +162,23 @@
 </head>
 
 <body>
-  <header>
-    <h1>EPUB Reader</h1>
-  </header>
 
-  <div id="upload">
+  <div id="controls">
     <input type="file" id="fileInput" accept=".epub" />
+    <button id="theme-toggle">Dark Mode</button>
   </div>
 
   <div id="viewer">
     <div id="book-container"></div>
   </div>
 
-  <div id="navigation">
-    <button id="prev-btn">Previous</button>
-    <button id="next-btn">Next</button>
-  </div>
-
   <div id="progress-container">
     <div id="progress-bar"></div>
+  </div>
+
+  <div id="navigation">
+    <button id="prev-btn" class="nav-btn" title="Previous Page">←</button>
+    <button id="next-btn" class="nav-btn" title="Next Page">→</button>
   </div>
 
   <script>
@@ -175,9 +188,70 @@
       const prevButton = document.getElementById('prev-btn');
       const nextButton = document.getElementById('next-btn');
       const progressBar = document.getElementById('progress-bar');
+      const themeToggle = document.getElementById('theme-toggle');
 
       let book;
       let rendition;
+
+      // Theme handling
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'dark') {
+        document.body.setAttribute('data-theme', 'dark');
+        themeToggle.textContent = 'Light Mode';
+      }
+
+      themeToggle.addEventListener('click', () => {
+        if (document.body.getAttribute('data-theme') === 'dark') {
+          document.body.removeAttribute('data-theme');
+          themeToggle.textContent = 'Dark Mode';
+          localStorage.setItem('theme', 'light');
+        } else {
+          document.body.setAttribute('data-theme', 'dark');
+          themeToggle.textContent = 'Light Mode';
+          localStorage.setItem('theme', 'dark');
+        }
+        // Update book theme if book is loaded
+        if (rendition) {
+          updateBookTheme();
+        }
+      });
+
+      function updateBookTheme() {
+        if (!rendition) return;
+
+        // Read values from CSS variables on body
+        const computedStyle = getComputedStyle(document.body);
+        const textColor = computedStyle.getPropertyValue('--text-color').trim();
+        const bgColor = computedStyle.getPropertyValue('--bg-color').trim();
+
+        rendition.themes.default({
+          body: { color: textColor, background: bgColor },
+          p: { color: textColor },
+          h1: { color: textColor },
+          h2: { color: textColor },
+          h3: { color: textColor },
+          h4: { color: textColor },
+          h5: { color: textColor },
+          h6: { color: textColor },
+          span: { color: textColor },
+          div: { color: textColor }
+        });
+      }
+
+      // Setup navigation listeners once
+      prevButton.addEventListener('click', () => {
+          if (rendition) rendition.prev();
+      });
+      nextButton.addEventListener('click', () => {
+          if (rendition) rendition.next();
+      });
+
+      document.addEventListener('keydown', (e) => {
+          if (!rendition) return;
+          if (e.key === 'ArrowRight') rendition.next();
+          if (e.key === 'ArrowLeft') rendition.prev();
+      });
+
 
       if (typeof ePub !== 'function') {
         viewer.innerHTML =
@@ -192,25 +266,45 @@
         viewer.innerHTML = '';
         progressBar.style.width = '0%';
 
+        // Cleanup previous book/rendition if exists?
+        if (book) {
+            book.destroy();
+        }
+
         try {
           book = ePub(file);
           rendition = book.renderTo(viewer, {
             width: '100%',
             height: '100%',
+            allowScriptedContent: false // Security fix
           });
 
           rendition.display();
 
-          rendition.on('progress', (cfi, progress) => {
-            progressBar.style.width = `${progress}%`;
+          // Apply current theme after rendering
+          // We need to wait for the rendition to be ready to apply styles
+          rendition.hooks.content.register((contents) => {
+             // This hook runs when content is loaded
+             updateBookTheme();
           });
 
-          prevButton.addEventListener('click', () => rendition.prev());
-          nextButton.addEventListener('click', () => rendition.next());
+          rendition.on('rendered', () => {
+              updateBookTheme();
+          });
 
-          document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowRight') rendition.next();
-            if (e.key === 'ArrowLeft') rendition.prev();
+          rendition.on('relocated', (location) => {
+             if (book.locations.length() > 0) {
+                const percentage = book.locations.percentageFromCfi(location.start.cfi);
+                progressBar.style.width = `${percentage * 100}%`;
+             }
+          });
+
+          // Since simple progress tracking needs locations generated:
+          book.ready.then(() => {
+            // Generating locations is slow for large books, but needed for accurate progress bar
+            return book.locations.generate(1000);
+          }).then(() => {
+             // Locations generated
           });
 
         } catch (err) {
