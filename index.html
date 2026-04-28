@@ -56,7 +56,8 @@
       align-items: center;
       padding: 1rem;
       background-color: var(--bg-color);
-      /* Minimalist: no border or shadow unless needed, maybe just spacing */
+      flex-wrap: wrap;
+      gap: 1rem;
     }
 
     #fileInput {
@@ -65,7 +66,6 @@
       cursor: pointer;
     }
 
-    /* Hide the default file input style somewhat if possible, or keep it simple */
     input[type="file"]::file-selector-button {
       border: 1px solid var(--border-color);
       padding: 0.4em 0.8em;
@@ -81,7 +81,12 @@
       color: var(--button-text);
     }
 
-    #theme-toggle {
+    .controls-right {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .control-btn {
       background: none;
       border: 1px solid var(--border-color);
       color: var(--text-color);
@@ -92,8 +97,13 @@
       transition: all 0.2s ease;
     }
 
-    #theme-toggle:hover {
+    .control-btn:hover:not(:disabled) {
       background-color: var(--ui-bg);
+    }
+    
+    .control-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     #viewer {
@@ -105,7 +115,7 @@
 
     #book-container {
       flex: 1;
-      overflow: hidden; /* epub.js handles scrolling usually within iframe or div */
+      overflow: hidden; 
       background-color: var(--bg-color);
     }
 
@@ -114,7 +124,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      gap: 2rem;
+      gap: 1.5rem;
       padding: 1rem;
       background-color: var(--bg-color);
     }
@@ -132,6 +142,13 @@
 
     .nav-btn:hover {
       opacity: 1;
+    }
+
+    #page-info {
+      font-size: 0.9rem;
+      opacity: 0.8;
+      min-width: 120px;
+      text-align: center;
     }
 
     #progress-container {
@@ -155,6 +172,7 @@
       color: var(--error-color);
       text-align: center;
       padding: 1rem;
+      width: 100%;
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -165,7 +183,10 @@
 
   <div id="controls">
     <input type="file" id="fileInput" accept=".epub" />
-    <button id="theme-toggle">Dark Mode</button>
+    <div class="controls-right">
+      <button id="export-btn" class="control-btn" disabled>Export Location</button>
+      <button id="theme-toggle" class="control-btn">Dark Mode</button>
+    </div>
   </div>
 
   <div id="viewer">
@@ -178,6 +199,7 @@
 
   <div id="navigation">
     <button id="prev-btn" class="nav-btn" title="Previous Page">←</button>
+    <span id="page-info"></span>
     <button id="next-btn" class="nav-btn" title="Next Page">→</button>
   </div>
 
@@ -189,9 +211,13 @@
       const nextButton = document.getElementById('next-btn');
       const progressBar = document.getElementById('progress-bar');
       const themeToggle = document.getElementById('theme-toggle');
+      const exportBtn = document.getElementById('export-btn');
+      const pageInfo = document.getElementById('page-info');
 
       let book;
       let rendition;
+      let currentBookKey = '';
+      let currentCfi = '';
 
       // Theme handling
       const savedTheme = localStorage.getItem('theme');
@@ -210,7 +236,6 @@
           themeToggle.textContent = 'Light Mode';
           localStorage.setItem('theme', 'dark');
         }
-        // Update book theme if book is loaded
         if (rendition) {
           updateBookTheme();
         }
@@ -218,8 +243,6 @@
 
       function updateBookTheme() {
         if (!rendition) return;
-
-        // Read values from CSS variables on body
         const computedStyle = getComputedStyle(document.body);
         const textColor = computedStyle.getPropertyValue('--text-color').trim();
         const bgColor = computedStyle.getPropertyValue('--bg-color').trim();
@@ -238,7 +261,7 @@
         });
       }
 
-      // Setup navigation listeners once
+      // Setup navigation listeners
       prevButton.addEventListener('click', () => {
           if (rendition) rendition.prev();
       });
@@ -252,10 +275,29 @@
           if (e.key === 'ArrowLeft') rendition.prev();
       });
 
+      // Handle location export
+      exportBtn.addEventListener('click', () => {
+        if (!currentCfi || !currentBookKey) return;
+        
+        const data = {
+          bookId: currentBookKey,
+          cfi: currentCfi,
+          exportedAt: new Date().toISOString()
+        };
+        
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `epub-location-${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
 
       if (typeof ePub !== 'function') {
-        viewer.innerHTML =
-          '<p class="error-message">Error: ePub.js library failed to load.</p>';
+        viewer.innerHTML = '<p class="error-message">Error: ePub.js library failed to load.</p>';
         return;
       }
 
@@ -263,28 +305,35 @@
         const file = this.files[0];
         if (!file) return;
 
-        viewer.innerHTML = '';
-        progressBar.style.width = '0%';
-
-        // Cleanup previous book/rendition if exists?
+        // Cleanup
         if (book) {
             book.destroy();
         }
+        viewer.innerHTML = '';
+        progressBar.style.width = '0%';
+        pageInfo.textContent = '';
+        exportBtn.disabled = false;
+
+        // Establish a unique key for the book so we can save its location
+        currentBookKey = `epub-loc-${file.name}-${file.size}`;
+        const savedCfi = localStorage.getItem(currentBookKey);
 
         try {
           book = ePub(file);
           rendition = book.renderTo(viewer, {
             width: '100%',
             height: '100%',
-            allowScriptedContent: false // Security fix
+            allowScriptedContent: false 
           });
 
-          rendition.display();
+          // Restore saved location if it exists, otherwise just display
+          if (savedCfi) {
+             rendition.display(savedCfi);
+          } else {
+             rendition.display();
+          }
 
-          // Apply current theme after rendering
-          // We need to wait for the rendition to be ready to apply styles
           rendition.hooks.content.register((contents) => {
-             // This hook runs when content is loaded
              updateBookTheme();
           });
 
@@ -292,19 +341,50 @@
               updateBookTheme();
           });
 
+          // Sync location whenever the user changes the page
           rendition.on('relocated', (location) => {
+             currentCfi = location.start.cfi;
+             // Save to local storage for automatic browser sync
+             localStorage.setItem(currentBookKey, currentCfi);
+
              if (book.locations.length() > 0) {
-                const percentage = book.locations.percentageFromCfi(location.start.cfi);
+                const percentage = book.locations.percentageFromCfi(currentCfi);
                 progressBar.style.width = `${percentage * 100}%`;
+                
+                const totalPages = book.locations.total;
+                const currentPage = Math.max(1, Math.round(percentage * totalPages));
+                pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+             } else {
+                pageInfo.textContent = 'Calculating...';
              }
           });
 
-          // Since simple progress tracking needs locations generated:
+          // Background task: Generate or load locations to track page numbers accurately
           book.ready.then(() => {
-            // Generating locations is slow for large books, but needed for accurate progress bar
-            return book.locations.generate(1000);
+            const locationsKey = currentBookKey + '-locations';
+            const storedLocations = localStorage.getItem(locationsKey);
+            
+            if (storedLocations) {
+              return book.locations.load(storedLocations);
+            } else {
+              // Generate locations (1024 chars per "page") and cache them
+              return book.locations.generate(1024).then(locations => {
+                 localStorage.setItem(locationsKey, book.locations.save());
+                 return locations;
+              });
+            }
           }).then(() => {
-             // Locations generated
+             // Locations successfully processed; update the page info immediately
+             if (currentCfi) {
+                const percentage = book.locations.percentageFromCfi(currentCfi);
+                progressBar.style.width = `${percentage * 100}%`;
+                
+                const totalPages = book.locations.total;
+                const currentPage = Math.max(1, Math.round(percentage * totalPages));
+                pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+             }
+          }).catch(err => {
+             console.error("Failed to generate locations:", err);
           });
 
         } catch (err) {
