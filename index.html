@@ -351,7 +351,7 @@
                 const percentage = book.locations.percentageFromCfi(currentCfi);
                 progressBar.style.width = `${percentage * 100}%`;
                 
-                const totalPages = book.locations.total;
+                const totalPages = book.locations.length();
                 const currentPage = Math.max(1, Math.round(percentage * totalPages));
                 pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
              } else {
@@ -375,11 +375,11 @@
             }
           }).then(() => {
              // Locations successfully processed; update the page info immediately
-             if (currentCfi) {
+             if (currentCfi && book.locations.length() > 0) {
                 const percentage = book.locations.percentageFromCfi(currentCfi);
                 progressBar.style.width = `${percentage * 100}%`;
                 
-                const totalPages = book.locations.total;
+                const totalPages = book.locations.length();
                 const currentPage = Math.max(1, Math.round(percentage * totalPages));
                 pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
              }
