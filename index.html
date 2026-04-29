@@ -348,7 +348,7 @@
         }
       }
 
-      // Setup navigation listeners
+      // Setup navigation listeners for main document
       prevButton.addEventListener('click', () => {
           if (rendition) rendition.prev();
       });
@@ -419,6 +419,12 @@
           } else {
              rendition.display();
           }
+
+          // Setup arrow key navigation inside the iframe
+          rendition.on('keyup', (e) => {
+            if (e.key === 'ArrowRight') rendition.next();
+            if (e.key === 'ArrowLeft') rendition.prev();
+          });
 
           rendition.hooks.content.register((contents) => {
              updateBookTheme();
