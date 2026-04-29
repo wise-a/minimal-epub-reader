@@ -147,8 +147,15 @@
     #page-info {
       font-size: 0.9rem;
       opacity: 0.8;
-      min-width: 120px;
+      min-width: 180px;
       text-align: center;
+      cursor: pointer;
+      user-select: none;
+      transition: opacity 0.2s ease;
+    }
+
+    #page-info:hover {
+      opacity: 1;
     }
 
     #progress-container {
@@ -218,6 +225,7 @@
       let rendition;
       let currentBookKey = '';
       let currentCfi = '';
+      let displayMode = parseInt(localStorage.getItem('epub-display-mode') || '0', 10);
 
       // Theme handling
       const savedTheme = localStorage.getItem('theme');
@@ -260,6 +268,14 @@
           div: { color: textColor }
         });
       }
+
+      pageInfo.addEventListener('click', () => {
+        displayMode = (displayMode + 1) % 3;
+        localStorage.setItem('epub-display-mode', displayMode);
+        if (rendition && book && book.locations.length() > 0) {
+           updateProgress(rendition.currentLocation());
+        }
+      });
 
       function updateProgress(locationObj) {
         if (!book || !book.locations) return;
@@ -313,7 +329,23 @@
         currentPage = Math.max(1, Math.min(totalPages, currentPage));
 
         progressBar.style.width = `${percentage * 100}%`;
-        pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+        
+        let chapterCurrent = 1;
+        let chapterTotal = 1;
+        if (locationObj && locationObj.start && locationObj.start.displayed) {
+            chapterCurrent = locationObj.start.displayed.page;
+            chapterTotal = locationObj.start.displayed.total;
+        }
+        
+        const percentDisplay = Math.round(percentage * 100);
+        
+        if (displayMode === 0) {
+            pageInfo.textContent = `Location: ${currentPage} out of ${totalPages}`;
+        } else if (displayMode === 1) {
+            pageInfo.textContent = `Location: ${percentDisplay}%`;
+        } else {
+            pageInfo.textContent = `Location: ${chapterCurrent} of Chapter ${chapterTotal}`;
+        }
       }
 
       // Setup navigation listeners
